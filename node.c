@@ -63,7 +63,7 @@ always_inline uword filter_plugin_inline (vlib_main_t * vm,
   next = nexts;
 
   while (n_left_from > 0) {
-    next[0] = FILTER_PLUGIN_NEXT_DROP; // default to drop (or forward as appropriate)
+    next[0] = FILTER_PLUGIN_NEXT_FORWARD; // default to drop (or forward as appropriate)
     if (b[0]->current_length >= sizeof(ip4_header_t)) {
       ip4_header_t * ip = (ip4_header_t *) vlib_buffer_get_current(b[0]);
       if (((ip->ip_version_and_header_length >> 4) == 4) &&
@@ -101,7 +101,7 @@ VLIB_REGISTER_NODE (filter_plugin_node) = {
   .type = VLIB_NODE_TYPE_INTERNAL,
   .n_next_nodes = FILTER_PLUGIN_N_NEXT,
   .next_nodes = {
-    [FILTER_PLUGIN_NEXT_FORWARD] = "interface-output",
+    [FILTER_PLUGIN_NEXT_FORWARD] = "ip4-lookup",
     [FILTER_PLUGIN_NEXT_DROP] = "error-drop",
   },
 };
@@ -114,4 +114,3 @@ VLIB_REGISTER_NODE (filter_plugin_node) = {
  * eval: (c-set-style "gnu")
  * End:
  */
-
