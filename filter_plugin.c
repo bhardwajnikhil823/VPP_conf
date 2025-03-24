@@ -124,4 +124,3 @@ VLIB_PLUGIN_REGISTER () = {
   .version = VPP_BUILD_VER,
   .description = "filter_plugin: Traces incoming ICMP packet lengths",
 };
-
