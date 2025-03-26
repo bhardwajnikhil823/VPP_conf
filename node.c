@@ -20,8 +20,11 @@
 
 #include <vlib/vlib.h>
 #include <vnet/vnet.h>
+#include <vnet/ethernet/ethernet.h>
 #include <vnet/ip/ip.h>
 #include <vnet/ip/ip4.h>
+#include <vnet/tcp/tcp_packet.h>
+#include <vnet/udp/udp.h>
 #include <vlib/unix/plugin.h>
 #include <filter_plugin/filter_plugin.h>
 
@@ -96,12 +99,13 @@ VLIB_NODE_FN (filter_plugin_node) (vlib_main_t * vm,
 
 VLIB_REGISTER_NODE (filter_plugin_node) = {
   .name = "filter_plugin",
+  .flags = VLIB_NODE_FLAG_IS_OUTPUT,
   .vector_size = sizeof(u32),
   .format_trace = format_filter_plugin_trace,
   .type = VLIB_NODE_TYPE_INTERNAL,
   .n_next_nodes = FILTER_PLUGIN_N_NEXT,
   .next_nodes = {
-    [FILTER_PLUGIN_NEXT_FORWARD] = "ip4-lookup",
+    [FILTER_PLUGIN_NEXT_FORWARD] = "ethernet-input",
     [FILTER_PLUGIN_NEXT_DROP] = "error-drop",
   },
 };
