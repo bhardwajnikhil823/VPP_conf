@@ -32,14 +32,42 @@
 typedef struct {
   u32 sw_if_index;
   u32 next_index;
+  ip4_address_t src;
+  ip4_address_t dst;
+  u8 protocol;
+  u16 src_port;
+  u32 seq_number;
+  u16 dst_port;
+  u8 function_code;
+  u16 trans_id;
 } filter_plugin_trace_t;
+
+
+typedef struct {
+  u16 trans_id;
+  u16 protocol;
+  u16 len;
+  u8 unit_id;
+} modtcp_trace_t;
+
+typedef struct {
+  modtcp_trace_t modtcp;
+  u8 function_code;
+} modbus_trace_t;
+
 
 /* Packet trace format function */
 static u8 * format_filter_plugin_trace (u8 * s, va_list * args) {
   CLIB_UNUSED (vlib_main_t * vm) = va_arg (*args, vlib_main_t *);
   CLIB_UNUSED (vlib_node_t * node) = va_arg (*args, vlib_node_t *);
   filter_plugin_trace_t * t = va_arg (*args, filter_plugin_trace_t *);
-  s = format (s, "FILTER_PLUGIN: sw_if_index %d, next index %d", t->sw_if_index, t->next_index);
+  if(t->src_port !=0){
+  s = format (s, "FILTER_PLUGIN Trace:\n");
+  s = format (s, "FILTER_PLUGIN: sw_if_index %d, next index %d, Src IP: %U, Dst IP: %U, Protocol: %d, SRC Port: %d, Seq_Num: %u, Dest Port: %d, funtion code: %d, trans id: %d",
+              t->sw_if_index, t->next_index,
+              format_ip4_address, &t->src,
+              format_ip4_address, &t->dst, t->protocol,t->src_port, t->seq_number, t->dst_port, t->function_code, t->trans_id);
+  }
   return s;
 }
 
@@ -77,8 +105,32 @@ always_inline uword filter_plugin_inline (vlib_main_t * vm,
     }
     if (is_trace && (b[0]->flags & VLIB_BUFFER_IS_TRACED)) {
       filter_plugin_trace_t * t = vlib_add_trace(vm, node, b[0], sizeof(*t));
+      ethernet_header_t * eh = (ethernet_header_t *) vlib_buffer_get_current(b[0]);
+      ip4_header_t * ip = (ip4_header_t *) (eh + 1);
       t->next_index = next[0];
       t->sw_if_index = vnet_buffer(b[0])->sw_if_index[VLIB_RX];
+      t->src = ip->src_address;
+      t->dst = ip->dst_address;
+      t->protocol = ip->protocol;
+      if(t->protocol == 6){
+       // t->protocol=2;
+        u32 ip_header_length = (ip->ip_version_and_header_length & 0x0F) * 4;
+        tcp_header_t *tcp = (tcp_header_t *)((u8 *)ip + ip_header_length);
+        t->src_port = clib_net_to_host_u16(tcp->src_port);
+        t->seq_number = clib_net_to_host_u32(tcp->seq_number);
+        t->dst_port = clib_net_to_host_u16(tcp->dst_port);
+        //u32 tcp_header_length = ((tcp->data_offset_and_reserved >> 4) & 0x0F) * 4;
+        u16* trans_id = (u16*)(tcp+1);
+        t->trans_id=(*trans_id);
+        // Extract the TCP header length (in bytes).
+        u32 tcp_header_length = ((tcp->data_offset_and_reserved >> 4) & 0x0F) * 4;
+
+        // Locate the Modbus data that immediately follows the TCP header.
+        modbus_trace_t *modbus = (modbus_trace_t *)((u8 *)tcp + tcp_header_length);
+
+        // Extract the Modbus function code.
+        t->function_code = modbus->function_code;
+      }
     }
     b++;
     next++;
@@ -109,6 +161,7 @@ VLIB_REGISTER_NODE (filter_plugin_node) = {
     [FILTER_PLUGIN_NEXT_DROP] = "error-drop",
   },
 };
+
 // #endif /* CLIB_MARCH_VARIANT */
 
 /*
