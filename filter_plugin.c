@@ -52,7 +52,7 @@ int filter_plugin_enable_disable (filter_plugin_main_t * fmp, u32 sw_if_index, i
     return VNET_API_ERROR_INVALID_SW_IF_INDEX;
 
   /* Attach our filter_plugin node into the ip4-unicast arc on this interface */
-  vnet_feature_enable_disable("ip4-unicast", "filter_plugin", sw_if_index, enable_disable, NULL, 0);
+  vnet_feature_enable_disable("device-input", "filter_plugin", sw_if_index, enable_disable, NULL, 0);
 
   return rv;
 }
@@ -114,9 +114,9 @@ VLIB_INIT_FUNCTION (filter_plugin_init);
 
 VNET_FEATURE_INIT (filter_plugin, static) =
 {
-  .arc_name = "ip4-unicast",
+  .arc_name = "device-input",
   .node_name = "filter_plugin",
-  .runs_before = VNET_FEATURES ("ip4-lookup"),
+  .runs_before = VNET_FEATURES ("ethernet-input"),
 };
 
 /* Plugin registration */
